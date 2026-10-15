@@ -397,4 +397,3 @@ events/
 - `PATCH` with `keyField: null` clears it; omitting `keyField` leaves it unchanged.
 - `DELETE /api/admin/events?visitorId=` removes that visitor's events from all summaries.
 - `openapi/public.json` and `openapi/admin.json` are committed, valid OpenAPI 3.1, cover every route on their port, and the drift test passes.
-lets

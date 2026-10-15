@@ -1,0 +1,705 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Events admin API",
+    "description": "Topic moderation and event access for the CMS backend. Internal port only.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/admin/events": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Event feed, cursor-based by `id` ascending. Filters combine with AND.",
+        "operationId": "feed",
+        "parameters": [
+          {
+            "name": "topic",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "resourceId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "resourceUrl",
+            "in": "query",
+            "description": "Normalized with the same rule as on ingest.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Return events with `id > after` (default 0).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Page size (default 100).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "maximum": 1000,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Feed"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filter, cursor or limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Delete all events of a visitor across all topics (data-erasure requests).",
+        "operationId": "erase_visitor",
+        "parameters": [
+          {
+            "name": "visitorId",
+            "in": "query",
+            "description": "Visitor whose events are deleted across all topics.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Events deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Deleted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid visitorId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/openapi/admin.json": {
+      "get": {
+        "tags": [
+          "openapi"
+        ],
+        "summary": "OpenAPI document of the admin API.",
+        "operationId": "admin_spec",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1 document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/openapi/public.json": {
+      "get": {
+        "tags": [
+          "openapi"
+        ],
+        "summary": "OpenAPI document of the public API.",
+        "operationId": "public_spec",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1 document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/topics": {
+      "get": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "List topics.",
+        "operationId": "list_topics",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Only topics with this status.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TopicStatus"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Topics, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TopicListItem"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/topics/{name}": {
+      "delete": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Delete a topic and all its events.",
+        "description": "If traffic for the topic continues, it is auto-created again as `pending`; to stop ongoing\nspam, block the topic instead.",
+        "operationId": "delete_topic",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "Topic name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Missing or wrong bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown topic",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Update a topic.",
+        "description": "The resulting row is validated before the update: `mode = toggle` requires a `keyField`.",
+        "operationId": "patch_topic",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "Topic name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopicPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated topic",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Topic"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, invalid `keyField`, or toggle without `keyField`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown topic",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "`Content-Type` is not `application/json`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/topics/{name}/sample": {
+      "get": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Latest events of a topic (for moderation).",
+        "operationId": "sample",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "Topic name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of latest events (default 10).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Latest events, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventItem"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown topic",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Deleted": {
+        "type": "object",
+        "required": [
+          "deleted"
+        ],
+        "properties": {
+          "deleted": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of deleted events."
+          }
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Error response body.",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "EventItem": {
+        "type": "object",
+        "description": "Stored event.",
+        "required": [
+          "id",
+          "topic",
+          "visitorId",
+          "data",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "topic": {
+            "type": "string"
+          },
+          "resourceId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resourceUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "visitorId": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Feed": {
+        "type": "object",
+        "description": "A page of the event feed.",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventItem"
+            }
+          },
+          "nextAfter": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Cursor for the next page; `null` when fewer than `limit` items were returned."
+          }
+        }
+      },
+      "Topic": {
+        "type": "object",
+        "required": [
+          "name",
+          "status",
+          "mode",
+          "public",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TopicStatus"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/TopicMode"
+          },
+          "keyField": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "For toggle: field name in `data` used as the key (e.g. `type`)."
+          },
+          "public": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TopicListItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Topic"
+          },
+          {
+            "type": "object",
+            "required": [
+              "eventCount"
+            ],
+            "properties": {
+              "eventCount": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "lastEventAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            }
+          }
+        ],
+        "description": "Topic with activity stats."
+      },
+      "TopicMode": {
+        "type": "string",
+        "enum": [
+          "append",
+          "toggle"
+        ]
+      },
+      "TopicPatch": {
+        "type": "object",
+        "description": "Partial update; absent fields are left unchanged.",
+        "properties": {
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TopicStatus"
+              }
+            ]
+          },
+          "mode": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TopicMode"
+              }
+            ]
+          },
+          "keyField": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Field in `data` used as the toggle key. `null` clears it; absent leaves it unchanged.",
+            "maxLength": 50,
+            "pattern": "^[A-Za-z0-9_]{1,50}$"
+          },
+          "public": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "TopicStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "approved",
+          "blocked"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearer": []
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+services:
+  events:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    # No ports published: nginx reaches 3001 over the `web` network, the CMS reaches 3002 over `cms`.
+    # 3002 is reachable from every container on these networks; the bearer token protects it there.
+    networks: [pg, cms, web]
+    healthcheck:
+      test: ["CMD", "/app/events", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  pg: { external: true, name: "${PG_NETWORK:?set PG_NETWORK}" }
+  cms: { external: true, name: "${CMS_NETWORK:?set CMS_NETWORK}" }
+  web: { external: true, name: "${WEB_NETWORK:?set WEB_NETWORK}" }

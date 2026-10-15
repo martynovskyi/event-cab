@@ -1,0 +1,2 @@
+# Generated OpenAPI documents are compared byte-for-byte by the drift test.
+openapi/*.json text eol=lf

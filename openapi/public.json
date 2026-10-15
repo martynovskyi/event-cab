@@ -1,0 +1,324 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Events public API",
+    "description": "Collects events (reactions, feedback) for resources of the website.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/events/{topic}": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Record an event.",
+        "description": "Topics are created automatically (as `pending`) on first use. Processing order, first match\nwins: missing `X-Real-IP` → 400, invalid topic name → 400, rate limit → 429, honeypot → 204,\nbody validation → 400/413/415, blocked topic → 204, topic-creation limits → 204, store.",
+        "operationId": "post_event",
+        "parameters": [
+          {
+            "name": "topic",
+            "in": "path",
+            "description": "Topic name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 50,
+              "pattern": "^[a-z0-9][a-z0-9_.-]{0,49}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "At most 8 KB",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Stored; the topic is approved and public, so its summary for this visitor is returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Summary"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Stored (topic pending or private), or silently dropped (honeypot, blocked topic, topic-creation limits)"
+          },
+          "400": {
+            "description": "Missing/invalid `X-Real-IP`, invalid topic name, malformed JSON or invalid fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body over 8 KB or `data` over 4 KB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "`Content-Type` is not `application/json`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events/{topic}/summary": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Summary for a resource.",
+        "description": "Only for approved + public topics. Not rate limited.",
+        "operationId": "get_summary",
+        "parameters": [
+          {
+            "name": "topic",
+            "in": "path",
+            "description": "Topic name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 50,
+              "pattern": "^[a-z0-9][a-z0-9_.-]{0,49}$"
+            }
+          },
+          {
+            "name": "resourceId",
+            "in": "query",
+            "description": "Same rules as on ingest.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "resourceUrl",
+            "in": "query",
+            "description": "Same normalization as on ingest.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "visitorId",
+            "in": "query",
+            "description": "Without it, `mine` is `[]`.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Summary of the resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Summary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid topic name, resource or visitorId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Topic unknown, not approved, or not public",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AppendSummary": {
+        "type": "object",
+        "description": "Summary of an `append` topic.",
+        "required": [
+          "mode",
+          "total"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "append"
+            ]
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of events for the resource."
+          }
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Error response body.",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "EventIn": {
+        "type": "object",
+        "description": "Event to record.",
+        "required": [
+          "visitorId"
+        ],
+        "properties": {
+          "resourceId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Stable resource identifier (trimmed, no control characters). Takes precedence over `resourceUrl` for aggregation.",
+            "example": "post:123",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "resourceUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Relative path (preferred: `location.pathname`) or absolute `http(s)` URL on an allowed host.\nOnly the normalized path is stored. At least one of `resourceId` / `resourceUrl` is required.",
+            "example": "/blog/post-1/",
+            "maxLength": 2048
+          },
+          "visitorId": {
+            "type": "string",
+            "description": "Client-generated visitor id (no control characters).",
+            "example": "0b6a9a2e-6c1e-4d2b-9f1a-3c5e7d9b1a2f",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Free-form JSON object, at most 4 KB serialized. `active`, if present, must be a boolean or `null`\n(`null` = `true`). For toggle topics `data[keyField]` is required: a string of 1..64 chars."
+          },
+          "website": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Honeypot: must be absent or empty. A non-empty value silently drops the event (`204`).",
+            "maxLength": 0
+          }
+        }
+      },
+      "Summary": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AppendSummary"
+          },
+          {
+            "$ref": "#/components/schemas/ToggleSummary"
+          }
+        ],
+        "description": "Resource summary, discriminated by `mode`.",
+        "discriminator": {
+          "propertyName": "mode",
+          "mapping": {
+            "append": "#/components/schemas/AppendSummary",
+            "toggle": "#/components/schemas/ToggleSummary"
+          }
+        }
+      },
+      "ToggleSummary": {
+        "type": "object",
+        "description": "Summary of a `toggle` topic.",
+        "required": [
+          "mode",
+          "counts",
+          "mine"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "toggle"
+            ]
+          },
+          "counts": {
+            "type": "object",
+            "description": "Active count per key; at most `TOGGLE_TOP_N` most frequent keys.",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "mine": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Keys currently active for the requesting visitor (not truncated; `[]` without `visitorId`)."
+          }
+        }
+      }
+    }
+  }
+}
