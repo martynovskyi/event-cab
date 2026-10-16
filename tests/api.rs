@@ -720,6 +720,56 @@ async fn sample_and_feed(pool: PgPool) {
     }
     assert_eq!(seen, [0, 1, 2, 3, 4]);
 
+    // Same, newest first: 2 + 2 + 1.
+    let mut before = String::new();
+    let mut seen = vec![];
+    loop {
+        let f = app
+            .admin(
+                Method::GET,
+                &format!("/api/admin/events?topic=a&limit=2&order=desc{before}"),
+                None,
+            )
+            .await;
+        assert_eq!(f.status, StatusCode::OK);
+        assert_eq!(f.body["nextAfter"], Value::Null);
+        seen.extend(
+            f.body["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|e| e["data"]["i"].as_i64().unwrap()),
+        );
+        match f.body["nextBefore"].as_i64() {
+            Some(n) => before = format!("&before={n}"),
+            None => break,
+        }
+    }
+    assert_eq!(seen, [4, 3, 2, 1, 0]);
+    for bad in ["order=up", "before=0"] {
+        assert_eq!(
+            app.admin(Method::GET, &format!("/api/admin/events?{bad}"), None)
+                .await
+                .status,
+            StatusCode::BAD_REQUEST
+        );
+    }
+
+    let names = |r: &common::Resp| {
+        r.body
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|t| t["name"].as_str().unwrap().to_owned())
+            .collect::<Vec<_>>()
+    };
+    let desc = app.admin(Method::GET, "/api/admin/topics", None).await;
+    assert_eq!(names(&desc), ["b", "a"]);
+    let asc = app
+        .admin(Method::GET, "/api/admin/topics?order=asc", None)
+        .await;
+    assert_eq!(names(&asc), ["a", "b"]);
+
     let f = app
         .admin(
             Method::GET,

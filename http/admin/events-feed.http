@@ -1,7 +1,8 @@
 ### GET /api/admin/events
-# Cursor feed by id ascending. Filters (AND): topic, resourceId, resourceUrl.
-# Pass the response's nextAfter as ?after= for the next page; null means the end.
-# limit 1..1000, default 100.
+# Cursor feed by id. Filters (AND): topic, resourceId, resourceUrl.
+# Default order=asc (oldest first): pass the response's nextAfter as ?after= for the next page.
+# order=desc (newest first): pass the response's nextBefore as ?before= for the next page.
+# A null cursor means the end. limit 1..1000, default 100.
 
 ### First page
 GET {{adminUrl}}/api/admin/events?limit=100
@@ -9,6 +10,14 @@ Authorization: Bearer {{adminToken}}
 
 ### Next page
 GET {{adminUrl}}/api/admin/events?after=100&limit=100
+Authorization: Bearer {{adminToken}}
+
+### Newest first
+GET {{adminUrl}}/api/admin/events?order=desc&limit=100
+Authorization: Bearer {{adminToken}}
+
+### Newest first, next page
+GET {{adminUrl}}/api/admin/events?order=desc&before=500&limit=100
 Authorization: Bearer {{adminToken}}
 
 ### Filtered by topic and resource

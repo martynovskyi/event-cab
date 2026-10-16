@@ -25,6 +25,7 @@ pub struct PublicDoc;
         title = "Events admin API",
         description = "Topic moderation and event access for the CMS backend. Internal port only."
     ),
+    components(schemas(routes::admin::SortOrder)),
     modifiers(&NoLicense, &BearerAuth),
     security(("bearer" = []))
 )]

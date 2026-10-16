@@ -11,7 +11,8 @@
         "tags": [
           "events"
         ],
-        "summary": "Event feed, cursor-based by `id` ascending. Filters combine with AND.",
+        "summary": "Event feed, cursor-based by `id`. Filters combine with AND.",
+        "description": "Ascending by default, paged with `after`/`nextAfter`. With `order=desc` the newest events come\nfirst, paged with `before`/`nextBefore`.",
         "operationId": "feed",
         "parameters": [
           {
@@ -44,12 +45,32 @@
           {
             "name": "after",
             "in": "query",
-            "description": "Return events with `id > after` (default 0).",
+            "description": "Return events with `id > after` (default 0). Cursor for `order=asc`.",
             "required": false,
             "schema": {
               "type": "integer",
               "format": "int64",
               "minimum": 0
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Return events with `id < before`. Cursor for `order=desc`.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "Sort by `id` (default `asc`, oldest first; `desc` is newest first).",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SortOrder"
             }
           },
           {
@@ -229,11 +250,20 @@
             "schema": {
               "$ref": "#/components/schemas/TopicStatus"
             }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "Sort by creation time (default `desc`, newest first).",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SortOrder"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Topics, newest first",
+            "description": "Topics, newest first unless `order=asc`",
             "content": {
               "application/json": {
                 "schema": {
@@ -561,9 +591,25 @@
               "null"
             ],
             "format": "int64",
-            "description": "Cursor for the next page; `null` when fewer than `limit` items were returned."
+            "description": "Cursor (`after`) for the next page with `order=asc`; `null` when fewer than `limit` items\nwere returned or with `order=desc`."
+          },
+          "nextBefore": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Cursor (`before`) for the next page with `order=desc`; `null` when fewer than `limit` items\nwere returned or with `order=asc`."
           }
         }
+      },
+      "SortOrder": {
+        "type": "string",
+        "description": "Sort direction.",
+        "enum": [
+          "asc",
+          "desc"
+        ]
       },
       "Topic": {
         "type": "object",

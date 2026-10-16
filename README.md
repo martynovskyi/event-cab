@@ -91,11 +91,11 @@ Ready-to-run requests for every endpoint are in [`http/`](http/). They work with
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/admin/topics?status=` | List topics with event counts |
+| `GET` | `/api/admin/topics?status=&order=` | List topics with event counts, newest first (`order=asc` for oldest first) |
 | `PATCH` | `/api/admin/topics/{name}` | Set `status`, `mode`, `keyField`, `public` |
 | `DELETE` | `/api/admin/topics/{name}` | Delete a topic and all its events |
 | `GET` | `/api/admin/topics/{name}/sample?limit=` | Latest events, for moderation |
-| `GET` | `/api/admin/events?topic=&resourceId=&resourceUrl=&after=&limit=` | Feed of events, paged by `id` |
+| `GET` | `/api/admin/events?topic=&resourceId=&resourceUrl=&after=&before=&order=&limit=` | Feed of events, paged by `id` (oldest first; `order=desc` for newest first) |
 | `DELETE` | `/api/admin/events?visitorId=` | Delete all of one visitor's events (data-erasure requests) |
 | `GET` | `/api/admin/openapi/{public,admin}.json` | The OpenAPI documents |
 

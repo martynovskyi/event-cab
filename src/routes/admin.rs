@@ -86,6 +86,25 @@ impl<'r> FromRow<'r, PgRow> for TopicListItem {
 pub struct TopicsQuery {
     /// Only topics with this status.
     pub status: Option<TopicStatus>,
+    /// Sort by creation time (default `desc`, newest first).
+    pub order: Option<SortOrder>,
+}
+
+/// Sort direction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum SortOrder {
+    Asc,
+    Desc,
+}
+
+impl SortOrder {
+    fn sql(self) -> &'static str {
+        match self {
+            Self::Asc => "ASC",
+            Self::Desc => "DESC",
+        }
+    }
 }
 
 /// Partial update; absent fields are left unchanged.
@@ -128,9 +147,14 @@ pub struct FeedQuery {
     /// Normalized with the same rule as on ingest.
     #[param(max_length = 2048)]
     pub resource_url: Option<String>,
-    /// Return events with `id > after` (default 0).
+    /// Return events with `id > after` (default 0). Cursor for `order=asc`.
     #[param(minimum = 0)]
     pub after: Option<i64>,
+    /// Return events with `id < before`. Cursor for `order=desc`.
+    #[param(minimum = 1)]
+    pub before: Option<i64>,
+    /// Sort by `id` (default `asc`, oldest first; `desc` is newest first).
+    pub order: Option<SortOrder>,
     /// Page size (default 100).
     #[param(minimum = 1, maximum = 1000)]
     pub limit: Option<i64>,
@@ -164,8 +188,12 @@ pub struct EventItem {
 #[serde(rename_all = "camelCase")]
 pub struct Feed {
     pub items: Vec<EventItem>,
-    /// Cursor for the next page; `null` when fewer than `limit` items were returned.
+    /// Cursor (`after`) for the next page with `order=asc`; `null` when fewer than `limit` items
+    /// were returned or with `order=desc`.
     pub next_after: Option<i64>,
+    /// Cursor (`before`) for the next page with `order=desc`; `null` when fewer than `limit` items
+    /// were returned or with `order=asc`.
+    pub next_before: Option<i64>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -193,7 +221,7 @@ fn limit_in(v: Option<i64>, default: i64, max: i64) -> Result<i64, AppError> {
     tag = "topics",
     params(TopicsQuery),
     responses(
-        (status = 200, description = "Topics, newest first", body = Vec<TopicListItem>),
+        (status = 200, description = "Topics, newest first unless `order=asc`",body = Vec<TopicListItem>),
         (status = 400, description = "Invalid filter", body = ErrorBody),
         (status = 401, description = "Missing or wrong bearer token", body = ErrorBody),
     ),
@@ -214,7 +242,8 @@ pub async fn list_topics(
            SELECT COUNT(*) AS n, MAX(created_at) AS last FROM events WHERE topic = t.name \
          ) e ON true \
          WHERE ($1::text IS NULL OR t.status = $1) \
-         ORDER BY t.created_at DESC, t.name"
+         ORDER BY t.created_at {order}, t.name",
+        order = q.order.unwrap_or(SortOrder::Desc).sql(),
     ))
     .bind(q.status.map(TopicStatus::as_str))
     .fetch_all(&st.pool)
@@ -351,7 +380,10 @@ pub async fn sample(
     Ok(Json(items))
 }
 
-/// Event feed, cursor-based by `id` ascending. Filters combine with AND.
+/// Event feed, cursor-based by `id`. Filters combine with AND.
+///
+/// Ascending by default, paged with `after`/`nextAfter`. With `order=desc` the newest events come
+/// first, paged with `before`/`nextBefore`.
 #[utoipa::path(
     get,
     path = "/api/admin/events",
@@ -372,6 +404,10 @@ pub async fn feed(
     if after < 0 {
         return Err(AppError::bad("after must be >= 0"));
     }
+    if q.before.is_some_and(|b| b < 1) {
+        return Err(AppError::bad("before must be >= 1"));
+    }
+    let order = q.order.unwrap_or(SortOrder::Asc);
     let resource_id = nonempty(&q.resource_id)
         .map(|s| validate_resource_id(s).ok_or_else(|| AppError::bad("invalid resourceId")))
         .transpose()?;
@@ -388,19 +424,30 @@ pub async fn feed(
            AND ($2::text IS NULL OR topic = $2) \
            AND ($3::text IS NULL OR resource_id = $3) \
            AND ($4::text IS NULL OR resource_url = $4) \
-         ORDER BY id LIMIT $5"
+           AND ($6::bigint IS NULL OR id < $6) \
+         ORDER BY id {} LIMIT $5",
+        order.sql(),
     ))
     .bind(after)
     .bind(nonempty(&q.topic))
     .bind(resource_id)
     .bind(resource_url)
     .bind(limit)
+    .bind(q.before)
     .fetch_all(&st.pool)
     .await?;
-    let next_after = (items.len() as i64 == limit)
+    let next = (items.len() as i64 == limit)
         .then(|| items.last().map(|e| e.id))
         .flatten();
-    Ok(Json(Feed { items, next_after }))
+    let (next_after, next_before) = match order {
+        SortOrder::Asc => (next, None),
+        SortOrder::Desc => (None, next),
+    };
+    Ok(Json(Feed {
+        items,
+        next_after,
+        next_before,
+    }))
 }
 
 /// Delete all events of a visitor across all topics (data-erasure requests).
