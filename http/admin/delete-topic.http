@@ -1,0 +1,8 @@
+### DELETE /api/admin/topics/{name}
+# Deletes the topic and all its events. 204, or 404 if it doesn't exist.
+# If traffic continues the topic is auto-created again as pending; block it to stop spam.
+
+@topic = reactions
+
+DELETE {{adminUrl}}/api/admin/topics/{{topic}}
+Authorization: Bearer {{adminToken}}

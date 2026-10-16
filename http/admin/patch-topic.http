@@ -1,0 +1,48 @@
+### PATCH /api/admin/topics/{name}
+# Absent fields stay unchanged; "keyField": null clears it. 404 if the topic doesn't exist.
+
+@topic = reactions
+
+### Publish as toggle reactions keyed by data.type
+PATCH {{adminUrl}}/api/admin/topics/{{topic}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "status": "approved",
+  "public": true,
+  "mode": "toggle",
+  "keyField": "type"
+}
+
+### Approve a write-only feedback topic (append, not public)
+PATCH {{adminUrl}}/api/admin/topics/feedback
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "status": "approved",
+  "mode": "append",
+  "public": false
+}
+
+### Block a topic (new events are silently dropped)
+PATCH {{adminUrl}}/api/admin/topics/{{topic}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "status": "blocked" }
+
+### Switch back to append and clear the key field
+PATCH {{adminUrl}}/api/admin/topics/{{topic}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "mode": "append", "keyField": null }
+
+### Toggle without keyField -> 400
+PATCH {{adminUrl}}/api/admin/topics/feedback
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "mode": "toggle" }

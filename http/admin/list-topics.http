@@ -1,0 +1,13 @@
+### GET /api/admin/topics
+# Topics with eventCount and lastEventAt. Optional filter: ?status=pending|approved|blocked
+
+### All topics
+GET {{adminUrl}}/api/admin/topics
+Authorization: Bearer {{adminToken}}
+
+### Pending topics (moderation queue)
+GET {{adminUrl}}/api/admin/topics?status=pending
+Authorization: Bearer {{adminToken}}
+
+### Missing token -> 401
+GET {{adminUrl}}/api/admin/topics

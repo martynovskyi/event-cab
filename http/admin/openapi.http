@@ -1,0 +1,7 @@
+### GET /api/admin/openapi/public.json
+GET {{adminUrl}}/api/admin/openapi/public.json
+Authorization: Bearer {{adminToken}}
+
+### GET /api/admin/openapi/admin.json
+GET {{adminUrl}}/api/admin/openapi/admin.json
+Authorization: Bearer {{adminToken}}

@@ -1,0 +1,10 @@
+### DELETE /api/admin/events?visitorId=
+# Deletes all events of one visitor across all topics (data-erasure requests).
+# -> 200 { "deleted": n }. visitorId is required.
+
+DELETE {{adminUrl}}/api/admin/events?visitorId=visitor-1
+Authorization: Bearer {{adminToken}}
+
+### Missing visitorId -> 400
+DELETE {{adminUrl}}/api/admin/events
+Authorization: Bearer {{adminToken}}

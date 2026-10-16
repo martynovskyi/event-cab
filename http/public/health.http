@@ -1,0 +1,3 @@
+### GET /health
+# 200 if Postgres responds, otherwise 503. Not proxied by nginx.
+GET {{publicUrl}}/health

@@ -1,0 +1,16 @@
+### GET /api/admin/events
+# Cursor feed by id ascending. Filters (AND): topic, resourceId, resourceUrl.
+# Pass the response's nextAfter as ?after= for the next page; null means the end.
+# limit 1..1000, default 100.
+
+### First page
+GET {{adminUrl}}/api/admin/events?limit=100
+Authorization: Bearer {{adminToken}}
+
+### Next page
+GET {{adminUrl}}/api/admin/events?after=100&limit=100
+Authorization: Bearer {{adminToken}}
+
+### Filtered by topic and resource
+GET {{adminUrl}}/api/admin/events?topic=reactions&resourceUrl=/blog/hello
+Authorization: Bearer {{adminToken}}

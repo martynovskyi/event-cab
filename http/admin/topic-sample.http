@@ -1,0 +1,7 @@
+### GET /api/admin/topics/{name}/sample
+# Latest events of a topic, for moderation. limit 1..100, default 10.
+
+@topic = reactions
+
+GET {{adminUrl}}/api/admin/topics/{{topic}}/sample?limit=10
+Authorization: Bearer {{adminToken}}

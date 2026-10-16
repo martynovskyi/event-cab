@@ -1,0 +1,84 @@
+
+### POST /api/events/{topic}
+# Records an event. 200 + summary if the topic is approved and public, otherwise 204.
+# X-Real-IP is normally set by nginx; locally it must be sent by hand.
+
+@topic = reactions
+
+### Toggle reaction on
+POST {{publicUrl}}/api/events/dev-test
+Content-Type: application/json
+X-Real-IP: 127.0.0.1
+
+{
+  "resourceUrl": "/blog/hello",
+  "visitorId": "visitor-1",
+  "data": {
+    "type": "like",
+    "active": true
+  }
+}
+
+### Toggle reaction off (sends state, not a click: repeating it changes nothing)
+POST {{publicUrl}}/api/events/{{topic}}
+Content-Type: application/json
+X-Real-IP: 127.0.0.1
+
+{
+  "resourceUrl": "/blog/hello",
+  "visitorId": "visitor-1",
+  "data": { "type": "like", "active": false }
+}
+
+### Resource by id and url (preferred: send both, the same way every time)
+POST {{publicUrl}}/api/events/{{topic}}
+Content-Type: application/json
+X-Real-IP: 127.0.0.1
+
+{
+  "resourceId": "post:123",
+  "resourceUrl": "/blog/hello",
+  "visitorId": "visitor-2",
+  "data": { "type": "fire" }
+}
+
+### Append-style feedback form
+POST {{publicUrl}}/api/events/feedback
+Content-Type: application/json
+X-Real-IP: 127.0.0.1
+
+{
+  "resourceUrl": "/contact",
+  "visitorId": "visitor-1",
+  "data": { "message": "Nice site!", "email": "me@example.com" },
+  "website": ""
+}
+
+### Honeypot filled -> 204, nothing stored
+POST {{publicUrl}}/api/events/feedback
+Content-Type: application/json
+X-Real-IP: 127.0.0.1
+
+{
+  "resourceUrl": "/contact",
+  "visitorId": "bot",
+  "data": { "message": "spam" },
+  "website": "http://spam.example"
+}
+
+### Missing resource -> 400
+POST {{publicUrl}}/api/events/{{topic}}
+Content-Type: application/json
+X-Real-IP: 127.0.0.1
+
+{
+  "visitorId": "visitor-1",
+  "data": { "type": "like" }
+}
+
+### Wrong content type -> 415
+POST {{publicUrl}}/api/events/{{topic}}
+Content-Type: text/plain
+X-Real-IP: 127.0.0.1
+
+hello

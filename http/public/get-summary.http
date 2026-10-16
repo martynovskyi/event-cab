@@ -1,0 +1,17 @@
+### GET /api/events/{topic}/summary
+# Counts for one resource. Only for topics that are approved + public, otherwise 404.
+# append -> { "mode": "append", "total": n }
+# toggle -> { "mode": "toggle", "counts": { "like": n }, "mine": ["like"] }
+
+@topic = reactions
+
+### By URL, with the visitor's own reactions in `mine`
+GET {{publicUrl}}/api/events/{{topic}}/summary?resourceUrl=/blog/hello&visitorId=visitor-1
+
+### By id, anonymous (`mine` is empty)
+GET {{publicUrl}}/api/events/{{topic}}/summary?resourceId=post:123
+
+### Invalid topic name -> 400
+GET {{publicUrl}}/api/events/Not-Valid!/summary?resourceUrl=/blog/hello
+### New Request
+GET 
