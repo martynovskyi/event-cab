@@ -7,7 +7,7 @@ use axum::{
     body::Body,
     http::{Method, Request, StatusCode},
 };
-use common::{App, IP, call};
+use common::{App, IP, Resp, call};
 use serde_json::{Value, json};
 use sqlx::PgPool;
 
@@ -163,14 +163,22 @@ async fn append_summary_counts_all(pool: PgPool) {
     app.patch("feedback", json!({ "status": "approved", "public": true }))
         .await;
     let s = app.summary("feedback", "resourceUrl=/blog/x/").await;
-    assert_eq!(s.body, json!({ "mode": "append", "total": 3 }));
+    assert_eq!(
+        s.body,
+        json!({ "mode": "append", "total": 3, "latest": null })
+    );
     let r = app
         .post(
             "feedback",
             json!({ "resourceUrl": "/blog/x", "visitorId": "v1" }),
         )
         .await;
-    assert_eq!(r.body, json!({ "mode": "append", "total": 4 }));
+    assert_eq!(
+        (&r.body["mode"], &r.body["total"]),
+        (&json!("append"), &json!(4))
+    );
+    assert_eq!(r.body["latest"]["data"], json!({}));
+    assert_eq!(r.body["latest"]["resourceUrl"], "/blog/x");
 }
 
 #[sqlx::test]
@@ -472,6 +480,84 @@ async fn summary_validation(pool: PgPool) {
         app.summary("r", "resourceId=&resourceUrl=/x").await.status,
         StatusCode::OK
     );
+}
+
+#[sqlx::test]
+async fn summary_by_id_url_or_both_with_latest(pool: PgPool) {
+    let app = App::new(pool);
+    let ev = |id: Option<&str>, url: Option<&str>, v: &str, n: i64| json!({ "resourceId": id, "resourceUrl": url, "visitorId": v, "data": { "n": n } });
+    app.post("fb", ev(Some("post:1"), Some("/a"), "v1", 1))
+        .await;
+    app.post("fb", ev(Some("post:1"), Some("/b"), "v1", 2))
+        .await;
+    app.post("fb", ev(None, Some("/a/"), "v2", 3)).await;
+    app.post("fb", ev(Some("post:2"), None, "v1", 4)).await;
+    app.post("other", ev(Some("post:1"), Some("/a"), "v1", 5))
+        .await;
+
+    assert_eq!(
+        app.summary("fb", "resourceId=post:1").await.status,
+        StatusCode::NOT_FOUND,
+        "pending topic"
+    );
+    app.patch("fb", json!({ "status": "approved", "public": true }))
+        .await;
+
+    let total = |r: Resp| (r.status, r.body["total"].clone());
+    let ok = StatusCode::OK;
+    assert_eq!(
+        total(app.summary("fb", "resourceId=post:1").await),
+        (ok, json!(2))
+    );
+    assert_eq!(
+        total(app.summary("fb", "resourceUrl=/a").await),
+        (ok, json!(2))
+    );
+    assert_eq!(
+        total(app.summary("fb", "resourceId=post:1&resourceUrl=/a").await),
+        (ok, json!(1))
+    );
+    assert_eq!(
+        total(app.summary("fb", "resourceUrl=/nope").await),
+        (ok, json!(0))
+    );
+
+    let r = app.summary("fb", "resourceId=post:1").await;
+    assert_eq!(r.body["latest"], Value::Null, "no visitorId");
+    let r = app.summary("fb", "resourceId=post:1&visitorId=v1").await;
+    let latest = &r.body["latest"];
+    assert_eq!(latest["resourceId"], "post:1");
+    assert_eq!(latest["resourceUrl"], "/b");
+    assert_eq!(latest["data"], json!({ "n": 2 }));
+    assert!(latest["createdAt"].is_string());
+    let r = app.summary("fb", "resourceUrl=/a&visitorId=v1").await;
+    assert_eq!(r.body["latest"]["data"], json!({ "n": 1 }));
+    let r = app.summary("fb", "resourceUrl=/a&visitorId=v3").await;
+    assert_eq!(r.body["latest"], Value::Null);
+
+    // Toggle: counts and `mine` use the same filters, `latest` is the raw last event.
+    let react = |id: Option<&str>, v: &str, ty: &str, active: bool| {
+        json!({ "resourceId": id, "resourceUrl": "/a", "visitorId": v,
+                "data": { "type": ty, "active": active } })
+    };
+    app.post("r", react(Some("p"), "v1", "like", true)).await;
+    app.post("r", react(Some("p"), "v1", "fire", true)).await;
+    app.post("r", react(Some("p"), "v1", "fire", false)).await;
+    app.post("r", react(None, "v2", "like", true)).await;
+    app.publish_toggle("r").await;
+    let r = app.summary("r", "resourceId=p&visitorId=v1").await;
+    assert_eq!(r.body["counts"], json!({ "like": 1 }));
+    assert_eq!(r.body["mine"], json!(["like"]));
+    assert_eq!(
+        r.body["latest"]["data"],
+        json!({ "type": "fire", "active": false })
+    );
+    let r = app.summary("r", "resourceUrl=/a&visitorId=v2").await;
+    assert_eq!(r.body["counts"], json!({ "like": 2 }));
+    assert_eq!(r.body["mine"], json!(["like"]));
+    let r = app.summary("r", "resourceId=p&resourceUrl=/a").await;
+    assert_eq!(r.body["counts"], json!({ "like": 1 }));
+    assert_eq!(r.body["latest"], Value::Null);
 }
 
 // ---- admin ----

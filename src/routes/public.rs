@@ -47,7 +47,7 @@ pub fn router(state: AppState) -> Router {
 #[derive(Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct EventIn {
-    /// Stable resource identifier (trimmed, no control characters). Takes precedence over `resourceUrl` for aggregation.
+    /// Stable resource identifier (trimmed, no control characters).
     #[schema(min_length = 1, max_length = 200, example = "post:123")]
     pub resource_id: Option<String>,
     /// Relative path (preferred: `location.pathname`) or absolute `http(s)` URL on an allowed host.
@@ -76,13 +76,13 @@ pub struct EventIn {
 #[serde(rename_all = "camelCase")]
 #[into_params(parameter_in = Query)]
 pub struct SummaryQuery {
-    /// Same rules as on ingest.
+    /// Matches events stored with this `resourceId`. Same rules as on ingest.
     #[param(max_length = 200)]
     pub resource_id: Option<String>,
-    /// Same normalization as on ingest.
+    /// Matches events stored with this URL. Same normalization as on ingest.
     #[param(max_length = 2048)]
     pub resource_url: Option<String>,
-    /// Without it, `mine` is `[]`.
+    /// Without it, `mine` is `[]` and `latest` is `null`.
     #[param(max_length = 64)]
     pub visitor_id: Option<String>,
 }
@@ -233,7 +233,7 @@ pub async fn post_event(
     let s = summary::compute(
         &st.pool,
         &t,
-        &resource.key,
+        &resource,
         Some(&input.visitor_id),
         cfg.toggle_top_n,
     )
@@ -243,6 +243,8 @@ pub async fn post_event(
 
 /// Summary for a resource.
 ///
+/// Filters on the stored `resourceId` and/or `resourceUrl`; with both, an event must match both.
+/// With `visitorId`, the visitor's latest matching event is returned too.
 /// Only for approved + public topics. Not rate limited.
 #[utoipa::path(
     get,
@@ -279,7 +281,7 @@ pub async fn get_summary(
         .await?
         .filter(|t| t.is_published())
         .ok_or(AppError::NotFound)?;
-    let s = summary::compute(&st.pool, &t, &resource.key, visitor, st.cfg.toggle_top_n).await?;
+    let s = summary::compute(&st.pool, &t, &resource, visitor, st.cfg.toggle_top_n).await?;
     Ok(Json(s))
 }
 

@@ -101,7 +101,7 @@
           "events"
         ],
         "summary": "Summary for a resource.",
-        "description": "Only for approved + public topics. Not rate limited.",
+        "description": "Filters on the stored `resourceId` and/or `resourceUrl`; with both, an event must match both.\nWith `visitorId`, the visitor's latest matching event is returned too.\nOnly for approved + public topics. Not rate limited.",
         "operationId": "get_summary",
         "parameters": [
           {
@@ -118,7 +118,7 @@
           {
             "name": "resourceId",
             "in": "query",
-            "description": "Same rules as on ingest.",
+            "description": "Matches events stored with this `resourceId`. Same rules as on ingest.",
             "required": false,
             "schema": {
               "type": "string",
@@ -128,7 +128,7 @@
           {
             "name": "resourceUrl",
             "in": "query",
-            "description": "Same normalization as on ingest.",
+            "description": "Matches events stored with this URL. Same normalization as on ingest.",
             "required": false,
             "schema": {
               "type": "string",
@@ -138,7 +138,7 @@
           {
             "name": "visitorId",
             "in": "query",
-            "description": "Without it, `mine` is `[]`.",
+            "description": "Without it, `mine` is `[]` and `latest` is `null`.",
             "required": false,
             "schema": {
               "type": "string",
@@ -201,6 +201,17 @@
             "type": "integer",
             "format": "int64",
             "description": "Number of events for the resource."
+          },
+          "latest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/VisitorEvent",
+                "description": "The requesting visitor's latest event for the resource; `null` without `visitorId` or if there is none."
+              }
+            ]
           }
         }
       },
@@ -228,7 +239,7 @@
               "string",
               "null"
             ],
-            "description": "Stable resource identifier (trimmed, no control characters). Takes precedence over `resourceUrl` for aggregation.",
+            "description": "Stable resource identifier (trimmed, no control characters).",
             "example": "post:123",
             "maxLength": 200,
             "minLength": 1
@@ -316,6 +327,46 @@
               "type": "string"
             },
             "description": "Keys currently active for the requesting visitor (not truncated; `[]` without `visitorId`)."
+          },
+          "latest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/VisitorEvent",
+                "description": "The requesting visitor's latest event for the resource; `null` without `visitorId` or if there is none."
+              }
+            ]
+          }
+        }
+      },
+      "VisitorEvent": {
+        "type": "object",
+        "description": "An event of the requesting visitor.",
+        "required": [
+          "data",
+          "createdAt"
+        ],
+        "properties": {
+          "resourceId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resourceUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "data": {
+            "type": "object"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }

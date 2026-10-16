@@ -70,7 +70,7 @@ curl -X PATCH localhost:3002/api/admin/topics/reactions \
 
 # Read the summary
 curl 'localhost:3001/api/events/reactions/summary?resourceUrl=/blog/hello&visitorId=v1'
-# {"mode":"toggle","counts":{"like":1},"mine":["like"]}
+# {"mode":"toggle","counts":{"like":1},"mine":["like"],"latest":{"resourceId":null,"resourceUrl":"/blog/hello","data":{"type":"like","active":true},"createdAt":"..."}}
 ```
 
 ## API
@@ -84,7 +84,7 @@ Ready-to-run requests for every endpoint are in [`http/`](http/). They work with
 | Method | Path | Description |
 |---|---|---|
 | `POST` | `/api/events/{topic}` | Record an event. Returns `200` with the summary if the topic is public, otherwise `204` |
-| `GET` | `/api/events/{topic}/summary?resourceId=&resourceUrl=&visitorId=` | Counts for a resource; only for topics that are approved and public |
+| `GET` | `/api/events/{topic}/summary?resourceId=&resourceUrl=&visitorId=` | Counts for a resource, matched by id, URL, or both. With `visitorId`, also the visitor's active keys and latest event. Only for topics that are approved and public |
 | `GET` | `/health` | `200` if Postgres responds, otherwise `503` (not proxied by nginx) |
 
 ### Admin (`:3002`, `Authorization: Bearer <ADMIN_TOKEN>`)
