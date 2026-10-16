@@ -3,7 +3,7 @@
   "info": {
     "title": "Events admin API",
     "description": "Topic moderation and event access for the CMS backend. Internal port only.",
-    "version": "0.1.1"
+    "version": "0.1.2"
   },
   "paths": {
     "/api/admin/events": {
